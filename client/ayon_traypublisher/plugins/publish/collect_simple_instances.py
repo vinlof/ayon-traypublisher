@@ -278,10 +278,19 @@ class CollectSimpleInstanceRepresentations(pyblish.api.InstancePlugin):
         """
 
         filenames = filepath_item["filenames"]
-        _, ext = os.path.splitext(filenames[0])
+        first_filename = filenames[0]
+        # Individual files keep their stem so several movies that share an
+        # extension do not become mp4, mp4_2, and so on. Sequences stay on
+        # the extension name; the first frame stem would include the frame.
         if len(filenames) == 1:
-            filenames = filenames[0]
+            return self._create_single_file_representation_data(
+                filepath_item,
+                first_filename,
+                repre_names_counter,
+                repre_names,
+            )
 
+        _, ext = os.path.splitext(first_filename)
         repre_name = repre_ext = ext[1:]
         if repre_name not in repre_names_counter:
             repre_names_counter[repre_name] = 2
@@ -303,6 +312,34 @@ class CollectSimpleInstanceRepresentations(pyblish.api.InstancePlugin):
             representation_data["outputName"] = str(counter)
 
         return representation_data
+
+    def _create_single_file_representation_data(
+        self, filepath_item, first_filename, repre_names_counter, repre_names
+    ):
+        """Name one file from its stem and keep the extension separate.
+
+        A second file with the same stem gets ``stem_2``. ``outputName`` is
+        the representation name so publish templates can tell the files apart.
+        """
+
+        repre_name, ext = os.path.splitext(first_filename)
+        repre_ext = ext.lstrip(".")
+        base_name = repre_name or repre_ext
+        counter = repre_names_counter.get(base_name, 1)
+        repre_names_counter[base_name] = counter + 1
+        if counter > 1:
+            repre_name = "{}_{}".format(base_name, counter)
+        else:
+            repre_name = base_name
+        repre_names.append(repre_name)
+        return {
+            "ext": repre_ext,
+            "name": repre_name,
+            "stagingDir": filepath_item["directory"],
+            "files": first_filename,
+            "tags": [],
+            "outputName": repre_name,
+        }
 
     def _calculate_source(self, filepaths):
         cols, rems = clique.assemble(filepaths)
