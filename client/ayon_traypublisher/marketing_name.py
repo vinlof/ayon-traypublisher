@@ -2,7 +2,9 @@
 
 The rules follow Gigaswitcher Cavalry names without importing that addon.
 ``products_9x16_story_SE`` yields region ``SE``, format ``story`` and aspect
-``9:16``. ``1080px_1920px_key_SE`` yields region ``SE`` and aspect ``9:16``.
+``9:16``. ``de-youtube-kontoret-9x16`` yields region ``DE`` and aspect ``9:16``.
+A language code or a ``story``, ``feed``, or ``reel`` token can sit anywhere
+in the name when it is separated by ``_`` or ``-``.
 """
 
 import math
@@ -36,11 +38,16 @@ _FORMAT_SUFFIXES = frozenset({
     "svg",
 })
 
-_FORMAT_REGION_RE = re.compile(
-    r"_(story|feed|reel)_([A-Za-z]{2})$",
+_REGION_TOKEN_RE = re.compile(
+    r"(?:^|[_\-])({})(?=[_\-]|$)".format(
+        "|".join(sorted(MARKETING_REGIONS))
+    ),
     re.IGNORECASE,
 )
-_TRAILING_REGION_RE = re.compile(r"_([A-Za-z]{2})$")
+_FORMAT_TOKEN_RE = re.compile(
+    r"(?:^|[_\-])(story|feed|reel)(?=[_\-]|$)",
+    re.IGNORECASE,
+)
 _PIXEL_SIZE_RE = re.compile(r"(\d+)px_(\d+)px", re.IGNORECASE)
 _ASPECT_TOKEN_RE = re.compile(
     r"(?:^|[_\-.])(\d+)\s*[xX:]\s*(\d+)(?:[_\-.]|$)"
@@ -81,19 +88,13 @@ def parse_marketing_filename(name):
     if not sanitized:
         return parsed
 
-    format_match = _FORMAT_REGION_RE.search(sanitized)
+    format_match = _FORMAT_TOKEN_RE.search(sanitized)
     if format_match:
         parsed["marketingFormat"] = format_match.group(1).lower()
-        region = format_match.group(2).upper()
-        if region in MARKETING_REGIONS:
-            parsed["marketingRegion"] = region
-        return parsed
 
-    region_match = _TRAILING_REGION_RE.search(sanitized)
+    region_match = _REGION_TOKEN_RE.search(sanitized)
     if region_match:
-        region = region_match.group(1).upper()
-        if region in MARKETING_REGIONS:
-            parsed["marketingRegion"] = region
+        parsed["marketingRegion"] = region_match.group(1).upper()
     return parsed
 
 
